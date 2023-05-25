@@ -42,7 +42,7 @@ def main_route():
         except ValueError:
             return jsonify({}), 400
         if n:
-            created_date: dt.date = dt.datetime.now().date()
+            airdate: dt.date = dt.datetime.now().date()
             i = 0
             while i < n:
                 api_resp = r.get(EXT_API_URL)
@@ -51,15 +51,15 @@ def main_route():
                     quiz_id = json_data.get("id")
                     quiz_txt = json_data.get("question", "")
                     answer_txt = json_data.get("answer", "")
-                    created_at_txt = json_data.get("created_at", "")
+                    airdate_txt = json_data.get("airdate", "")
                     try:
-                        created_date: dt.date = dt.datetime.strptime(created_at_txt, "%Y-%m-%dT%H:%M:%S.%f%z").date()
+                        airdate: dt.date = dt.datetime.strptime(airdate_txt, "%Y-%m-%dT%H:%M:%S.%f%z").date()
                     except ValueError:
                         pass
                     if db.session.query(QuizQuestions).filter(QuizQuestions.quiz_id == quiz_id).first():
                         continue
                     new_quiz: QuizQuestions = QuizQuestions(quiz_id=quiz_id, quiz_txt=quiz_txt,
-                                                            answer_txt=answer_txt, quiz_date=created_date)
+                                                            answer_txt=answer_txt, quiz_date=airdate)
                     db.session.add(new_quiz)
                     db.session.commit()
                     i += 1

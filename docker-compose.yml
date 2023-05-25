@@ -1,10 +1,25 @@
 version: "3.9"
 services:
+  apiapp:
+    container_name: apiapp_container
+    build:
+      context: .
+    environment:
+      POSTGTRES_SQL_URI: "postgresql://quizuser:quiz1234@postgres_container:5432/quizdb"
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+    networks:
+      - backend
 
   postgres:
     container_name: postgres_container
     image: postgres:13.11
-    user: root
     command:
       - "postgres"
       - "-c"
@@ -63,7 +78,6 @@ services:
   pgadmin:
     container_name: pgadmin_container
     image: dpage/pgadmin4:7.1
-    user: root
     environment:
       PGADMIN_DEFAULT_EMAIL: "quizuser@quiz.com"
       PGADMIN_DEFAULT_PASSWORD: "quiz1234"
@@ -80,23 +94,6 @@ services:
           memory: 1G
     networks:
       - backend
-
-  apiapp:
-    container_name: apiapp_container
-    build: .
-    environment:
-      POSTGTRES_SQL_URI: "postgresql://quizuser:quiz1234@postgres_container:5432/quizdb"
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 4G
-    networks:
-      - backend
-
 
 networks:
   backend:
