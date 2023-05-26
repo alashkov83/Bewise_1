@@ -2,12 +2,11 @@ import datetime as dt
 import os
 
 import requests as r
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Text, Integer, Date, desc
 
-EXT_API_URL: str = 'https://jservice.io/api/random?count=1'
-
+EXT_API_URL: str = 'https://jservice.io/api/random'
 
 app: Flask = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("POSTGTRES_SQL_URI", "sqlite:///test.db")
@@ -21,7 +20,7 @@ class QuizQuestions(db.Model):
     answer_txt = Column(Text, nullable=False, default="")
     quiz_date = Column(Date, nullable=False)
 
-    def to_json(self):
+    def to_json(self) -> Response:
         return jsonify({"quiz_id": self.quiz_id,
                         "quiz_txt": self.quiz_txt,
                         "answer_txt": self.answer_txt,
@@ -32,8 +31,26 @@ with app.app_context():
     db.create_all()
 
 
+def save_to_db(json_data: dict) -> bool:
+    quiz_id: str = json_data.get("id")
+    quiz_txt: str = json_data.get("question", "")
+    answer_txt: str = json_data.get("answer", "")
+    airdate_txt: str = json_data.get("airdate", "")
+    try:
+        airdate: dt.date = dt.datetime.strptime(airdate_txt, "%Y-%m-%dT%H:%M:%S.%f%z").date()
+    except ValueError:
+        airdate: dt.date = dt.datetime.now().date()
+    if db.session.query(QuizQuestions).filter(QuizQuestions.quiz_id == quiz_id).first():
+        return False
+    new_quiz: QuizQuestions = QuizQuestions(quiz_id=quiz_id, quiz_txt=quiz_txt,
+                                            answer_txt=answer_txt, quiz_date=airdate)
+    db.session.add(new_quiz)
+    db.session.commit()
+    return True
+
+
 @app.route("/", methods=['POST'])
-def main_route():
+def main_route() -> tuple[Response, int]:
     user_req = request.json
     if user_req:
         n = user_req.get("questions_num", 0)
@@ -42,33 +59,26 @@ def main_route():
         except ValueError:
             return jsonify({}), 400
         if n:
-            airdate: dt.date = dt.datetime.now().date()
             i = 0
+            api_resp: r.Response = r.get(EXT_API_URL, params={'count': n})
+            if api_resp.ok:
+                for json_data in api_resp.json():
+                    if save_to_db(json_data):
+                        i += 1
+            else:
+                return jsonify({}), api_resp.status_code
             while i < n:
-                api_resp = r.get(EXT_API_URL)
+                api_resp: r.Response = r.get(EXT_API_URL, params={'count': 1})
                 if api_resp.ok:
-                    json_data = api_resp.json()[0]
-                    quiz_id = json_data.get("id")
-                    quiz_txt = json_data.get("question", "")
-                    answer_txt = json_data.get("answer", "")
-                    airdate_txt = json_data.get("airdate", "")
-                    try:
-                        airdate: dt.date = dt.datetime.strptime(airdate_txt, "%Y-%m-%dT%H:%M:%S.%f%z").date()
-                    except ValueError:
-                        pass
-                    if db.session.query(QuizQuestions).filter(QuizQuestions.quiz_id == quiz_id).first():
-                        continue
-                    new_quiz: QuizQuestions = QuizQuestions(quiz_id=quiz_id, quiz_txt=quiz_txt,
-                                                            answer_txt=answer_txt, quiz_date=airdate)
-                    db.session.add(new_quiz)
-                    db.session.commit()
-                    i += 1
+                    json_data: dict = api_resp.json()[0]
+                    if save_to_db(json_data):
+                        i += 1
                 else:
                     return jsonify({}), api_resp.status_code
             last_quiz = db.session.query(QuizQuestions).order_by(desc(QuizQuestions.id)).first()
             if last_quiz:
-                return last_quiz.to_json()
-            return jsonify({})
+                return last_quiz.to_json(), 200
+            return jsonify({}), 400
         else:
             return jsonify({}), 400
     else:
