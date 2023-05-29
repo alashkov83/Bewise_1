@@ -1,5 +1,6 @@
 import datetime as dt
 import os
+from http import HTTPStatus
 
 import requests as r
 from flask import Flask, request, jsonify, Response
@@ -57,7 +58,7 @@ def main_route() -> tuple[Response, int]:
         try:
             n = int(n)
         except ValueError:
-            return jsonify({}), 400
+            return jsonify({}), HTTPStatus.BAD_REQUEST
         if n:
             i = 0
             api_resp: r.Response = r.get(EXT_API_URL, params={'count': n})
@@ -77,12 +78,12 @@ def main_route() -> tuple[Response, int]:
                     return jsonify({}), api_resp.status_code
             last_quiz = db.session.query(QuizQuestions).order_by(desc(QuizQuestions.id)).first()
             if last_quiz:
-                return last_quiz.to_json(), 200
-            return jsonify({}), 400
+                return last_quiz.to_json(), HTTPStatus.OK
+            return jsonify({}), HTTPStatus.BAD_REQUEST
         else:
-            return jsonify({}), 400
+            return jsonify({}), HTTPStatus.BAD_REQUEST
     else:
-        return jsonify({}), 400
+        return jsonify({}), HTTPStatus.BAD_REQUEST
 
 
 if __name__ == '__main__':
