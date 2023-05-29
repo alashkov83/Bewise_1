@@ -1,11 +1,11 @@
 version: "3.9"
 services:
   apiapp:
-    container_name: apiapp_container
+    container_name: quiz_container
     build:
       context: .
     environment:
-      POSTGTRES_SQL_URI: "postgresql://quizuser:quiz1234@postgres_container:5432/quizdb"
+      POSTGTRES_SQL_URI: "postgresql://quizuser:quiz1234@quizdb_container:5432/quizdb"
     depends_on:
       - postgres
     restart: unless-stopped
@@ -23,7 +23,7 @@ services:
       - backend
 
   postgres:
-    container_name: postgres_container
+    container_name: quizdb_container
     image: postgres:13.11
     command:
       - "postgres"
@@ -85,7 +85,7 @@ services:
       - backend
 
   pgadmin:
-    container_name: pgadmin_container
+    container_name: quizadmin_container
     image: dpage/pgadmin4:7.1
     user: root
     environment:
